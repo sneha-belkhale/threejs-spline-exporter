@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Spline Editor</title>
+  <script type="text/javascript" src="protovis-r3.2.js"></script>
+  <style type="text/css">
+  .header {
+    float: right;
+    padding-top: 5px;
+  }
+  body {
+    margin: 0;
+    display: table;
+    height: 100%;
+    width: 100%;
+    font: 14px/134% Helvetica Neue, sans-serif;
+  }
+  #center {
+    display: table-cell;
+    vertical-align: middle;
+  }
+  
+  #fig {
+    position: relative;
+    margin: auto;
+    width: 900px;
+    height: 620px;
+  }
+  </style>
+</head>
+
+<body>
+  <div id="center">
+
+    <div id="fig">
+      <div>
+        <h2>ThreeJS Easing Curve Exporter</h2>
+        Simple web editor to create and edit easing curves for more control on animations, exported directly to a <a href="https://threejs.org/docs/#api/en/extras/curves/SplineCurve">THREE.SplineCurve</a>.
+        <br>
+        Extension of
+        <a href="https://mbostock.github.io/protovis/ex/splines.html">https://mbostock.github.io/protovis/ex/splines.html</a>
+        <br>
+        <br>
+        click points to move // ctrl-click to add point // delete to remove
+      </div>
+      <script type="text/javascript+protovis">
+
+      var w = 896,
+          h = 586,
+          i = 3,
+          interpolate = "cardinal",
+          segmented = false;
+          controlClicked = false;
+
+      var points; 
+      let resetPoints = function(count) {
+        points = pv.range(0, count).map(function(i) ({
+          x: i * w / (count-1),
+          y: h - i * h / (count-1)
+        }));
+      }
+      resetPoints(4)
+
+
+      var vis = new pv.Panel()
+          .width(w)
+          .height(h)
+          .fillStyle("#fff")
+          .strokeStyle("#ccc")
+          .lineWidth(4)
+          .antialias(false)
+          .margin(2)
+          .event("mousedown", function() (i = controlClicked ? points.push(this.mouse()) - 1 : i, this));
+
+      vis.add(pv.Line)
+          .data(function() points)
+          .left(function(d) d.x)
+          .top(function(d) d.y)
+          .interpolate(function() interpolate)
+          .segmented(function() segmented)
+          .strokeStyle(pv.Colors.category10().by(pv.index))
+          .tension(0.5)
+          .lineWidth(2);
+
+      vis.add(pv.Dot)
+          .data(function() points)
+          .left(function(d) d.x)
+          .top(function(d) d.y)
+          .radius(7)
+          .cursor("move")
+          .strokeStyle(function() i == this.index ? "#ff7f0e" : "#1f77b4")
+          .fillStyle(function() this.strokeStyle().alpha(.2))
+          .event("mousedown", pv.Behavior.drag())
+          .event("dragstart", function() (i = this.index, this))
+          .event("drag", vis);
+
+      vis.render();
+
+      let codeGen = function() {
+        let finalString = "const curve = new THREE.SplineCurve( ["
+        points.forEach((p,idx) => {
+            let rx = p.x / w;
+            let ry = 1.0 - p.y / h;
+            finalString += "new THREE.Vector2(" + rx + "," + ry + ")"
+            if(idx !== points.length-1) {
+              finalString += ","
+            }
+        })
+        finalString +="] )";
+        return finalString;
+      }
+
+      let splineCode = document.getElementById("splineCode")
+      splineCode.value = codeGen();
+
+      let splineResetButton = document.getElementById("splinePointReset")
+      let splinePointNum = document.getElementById("splinePointNum")
+      splineResetButton.onclick = function(){
+        resetPoints(parseInt(splinePointNum.value))
+        vis.render();
+      };
+
+      pv.listen(window, "mousedown", function() {
+        self.focus()
+        splineCode.value = codeGen();
+      });
+      pv.listen(window, "mouseup", function() {
+        self.focus()
+        splineCode.value = codeGen();
+      });
+      pv.listen(window, "keydown", function(e) {
+        // code 8 is backspace, code 46 is delete
+        if ((e.keyCode == 8 || e.keyCode == 46) && (i >= 0)) {
+          points.splice(i--, 1);
+          vis.render();
+          e.preventDefault();
+          splineCode.value = codeGen();
+        }
+        console.log(e.keyCode)
+        if(e.keyCode == 16) {
+          controlClicked = true;
+        }
+      });
+      pv.listen(window, "keyup", function(e) {
+        if(e.keyCode == 16) {
+          controlClicked = false;
+        }
+      });
+      function copyFunc() {
+        /* Get the text field */
+        var copyText = document.getElementById("splineCode");
+      
+        /* Select the text field */
+        copyText.select();
+        copyText.setSelectionRange(0, 99999); /* For mobile devices */
+      
+        /* Copy the text inside the text field */
+        document.execCommand("copy");
+      }
+
+    </script>
+      <div class="header">
+      </div>
+      <label for="splinePoints"><b>Number of Spline Points:</b></label>
+      <input type="number" id="splinePointNum" name="tentacles" min="2" max="50" value="4">
+      <button type="button" id="splinePointReset">reset</button>
+      <div>
+        <b>Export:</b>
+        <input style='width:70%;' type="text" value="Hello World" id="splineCode" readonly>
+        <button onclick="copyFunc()">Copy</button>
+      </div>
+      <div>
+        <b>Usage:</b>
+        const remappedT = curve.getPointAt(t);
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
